@@ -146,7 +146,7 @@ pytest tests/ -v
 # Multi-ticker backtest (default: AAPL, MSFT, GOOGL, NVDA)
 python run_backtest.py
 
-# With dynamic stock rotation — screens 24-stock universe monthly
+# With dynamic stock rotation — screens 29-stock universe monthly
 python run_backtest.py --screen
 
 # Select top 6 stocks per rotation window
@@ -170,7 +170,7 @@ Run **`run_backtest.py`** — this uses **FinBERT** (ProsusAI/finbert), a financ
 ### 4. Run Sentiment Analysis (Phase 2)
 
 ```bash
-python sentiment.py --ticker AAPL --lookback 24
+python sentiment.py --ticker AAPL --lookback 29
 ```
 
 ### 5. Run Live Paper Trading (Phase 3)
@@ -243,7 +243,7 @@ This daily signal is then combined with technical indicators (SMA-50, RSI) by `s
 
 ### Dynamic Stock Rotation Mode
 
-When run with `--screen`, the system dynamically selects the best stocks from a **24-stock universe** across 6 sectors, re-screening every 21 trading days (~monthly):
+When run with `--screen`, the system dynamically selects the best stocks from a **29-stock universe** across 6 sectors, re-screening every 21 trading days (~monthly):
 
 | Sector | Stocks |
 |---|---|
