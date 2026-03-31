@@ -197,14 +197,54 @@ def main():
     news_fetcher = NewsFetcher()
     sentiment_agent = SentimentAgent(window_hours=24)
 
-    # 1b. Dynamic Stock Screening (optional)
+    # ================================================================== #
+    # 1b. Dynamic Stock Rotation (when --screen is used)                  #
+    # ================================================================== #
+    rotation_schedule = None  # None = fixed universe (default)
+
     if args.screen:
-        logger.info("Running dynamic stock screening...")
-        screener = StockScreener(market_handler, news_fetcher)
-        screening_results = screener.screen(top_n=args.top_n)
-        print_screening_report(screening_results)
-        tickers = [r["ticker"] for r in screening_results[:args.top_n]]
-        logger.info(f"Screener selected: {tickers}")
+        from src.strategy.stock_screener import (
+            StockScreener, DEFAULT_UNIVERSE,
+            build_rotation_schedule, print_rotation_summary,
+        )
+
+        logger.info("=== DYNAMIC ROTATION MODE ===")
+        logger.info("Fetching market data for %d-stock universe...", len(DEFAULT_UNIVERSE))
+
+        # Step A: Fetch market data for the FULL universe
+        all_universe_data = {}
+        for ticker in DEFAULT_UNIVERSE:
+            try:
+                df = market_handler.get_historical_bars(
+                    ticker, start=start_date, end=end_date, timeframe="1Day"
+                )
+                if df is not None and len(df) > 20:
+                    df = market_handler.add_moving_averages(df, windows=[50])
+                    df = market_handler.add_rsi(df, period=14)
+                    df = market_handler.add_adx(df, period=14)
+                    all_universe_data[ticker] = df
+                    logger.info(f"  {ticker}: {len(df)} bars loaded")
+            except Exception as e:
+                logger.warning(f"  {ticker}: SKIPPED ({e})")
+
+        # Step B: Determine trading dates from any ticker
+        sample_df = next(iter(all_universe_data.values()))
+        trading_dates = sorted(sample_df["timestamp"].tolist())
+
+        # Step C: Build rotation schedule (re-screen every 21 trading days)
+        screener = StockScreener(market_handler)
+        rotation_schedule = build_rotation_schedule(
+            screener, all_universe_data, trading_dates,
+            rotation_period_days=21, top_n=args.top_n,
+        )
+        print_rotation_summary(rotation_schedule)
+
+        # Step D: Determine all unique tickers ever selected
+        all_selected = set()
+        for active_list in rotation_schedule.values():
+            all_selected.update(active_list)
+        tickers = sorted(all_selected)
+        logger.info(f"Unique tickers across all rotation windows: {tickers}")
 
     # 2. Fetch Benchmark Data
     logger.info("Fetching Benchmark Data...")
@@ -226,9 +266,28 @@ def main():
         all_market_rows.extend(m_rows)
         all_sentiment_rows.extend(s_rows)
 
-
     # Sort combined sentiment into chronological order
     all_sentiment_rows.sort(key=lambda x: x.get("timestamp", x.get("generated_at", now_utc())))
+
+    # ================================================================== #
+    # 3b. Filter sentiment by rotation schedule                           #
+    # ================================================================== #
+    if rotation_schedule is not None:
+        # Only keep sentiment rows for tickers that are ACTIVE on that date
+        before_count = len(all_sentiment_rows)
+        filtered = []
+        for row in all_sentiment_rows:
+            dt = row.get("generated_at", row.get("timestamp"))
+            if dt:
+                d_str = dt.strftime("%Y-%m-%d")
+                active_tickers = rotation_schedule.get(d_str, [])
+                if row["ticker"] in active_tickers:
+                    filtered.append(row)
+        all_sentiment_rows = filtered
+        logger.info(
+            f"Rotation filter: {before_count} -> {len(all_sentiment_rows)} sentiment rows "
+            f"(removed {before_count - len(all_sentiment_rows)} for inactive tickers)"
+        )
 
     # Apply cross-ticker correlation dampening
     by_date = {}
@@ -239,25 +298,27 @@ def main():
             if d_str not in by_date:
                 by_date[d_str] = []
             by_date[d_str].append(r)
-    
+
     for d_str, daily_rows in by_date.items():
+        active = rotation_schedule.get(d_str, tickers) if rotation_schedule else tickers
         strong_tickers = set(
-            r["ticker"] for r in daily_rows 
+            r["ticker"] for r in daily_rows
             if r.get("sentiment") == "POSITIVE" and float(r.get("conviction_score", 0)) >= 8.0
         )
         for r in daily_rows:
-            comps = COMPETITORS_MAP.get(r["ticker"], [])
+            # Dynamic competitor detection: any other active ticker in same sector
+            comps = [t for t in active if t != r["ticker"]]
             hits = sum(1 for c in comps if c in strong_tickers)
             if hits > 0:
-                penalty = min(0.25, hits * 0.10)
+                penalty = min(0.25, hits * 0.05)  # smaller penalty with more tickers
                 old_conv = float(r.get("conviction_score", 0))
                 r["conviction_score"] = round(old_conv * (1.0 - penalty), 2)
                 if "sentiment_rolling" in r:
                     r["sentiment_rolling"] = round(r["sentiment_rolling"] * (1.0 - penalty), 3)
 
     logger.info(
-        f"Combined: {len(all_market_rows)} market rows, {len(all_sentiment_rows)} sentiment rows "
-        f"across {len(tickers)} tickers"
+        f"Combined: {len(all_market_rows)} market rows, {len(all_sentiment_rows)} sentiment rows, "
+        f"tickers={tickers}"
     )
 
     # 4. Run Backtester
