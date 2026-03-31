@@ -1,0 +1,83 @@
+# Trading Agent — Phase 1 Requirements
+# Install with: pip install -r requirements.txt
+#
+# Python 3.10+ required
+# -----------------------------------------------------------------------
+
+# -----------------------------------------------------------------------
+# Core data dependencies
+# -----------------------------------------------------------------------
+
+# Market data — Alpaca (primary provider)
+alpaca-py>=0.19.0
+
+# Market data — Yahoo Finance (fallback provider)
+yfinance>=0.2.36
+
+# DataFrames and time-series processing
+pandas>=2.1.0
+numpy>=1.26.0
+
+# Parquet support for disk cache
+pyarrow>=14.0.0
+
+# Timezone handling
+pytz>=2024.1
+
+# -----------------------------------------------------------------------
+# News / unstructured data
+# -----------------------------------------------------------------------
+
+# RSS feed parsing
+feedparser>=6.0.10
+
+# -----------------------------------------------------------------------
+# Configuration and environment
+# -----------------------------------------------------------------------
+
+# Loads .env files for secrets management
+python-dotenv>=1.0.0
+
+# -----------------------------------------------------------------------
+# Testing
+# -----------------------------------------------------------------------
+
+# Test runner and fixtures
+pytest>=7.4.0
+pytest-cov>=4.1.0
+
+# -----------------------------------------------------------------------
+# Optional — Phase 2 / 3 (install when ready)
+# -----------------------------------------------------------------------
+
+# NLP and sentiment (Phase 2) — uncomment to install
+# -------------------------------------------------------------------
+# FinBERT baseline (CPU-runnable, ~440MB download on first use)
+transformers>=4.38.0
+# torch>=2.1.0             # CPU inference works without explicit install
+                            # on many systems; add if not auto-resolved
+#
+# Optional: GGUF inference for Llama 3 / Mistral (much lighter on RAM)
+# Download a GGUF file from HuggingFace and pass model_path= to LlamaProvider
+# pip install llama-cpp-python
+#
+# Optional: Full-precision HuggingFace LLM backend (requires ~16GB RAM + GPU)
+# accelerate>=0.27.0
+
+# Backtesting (Phase 4)
+# backtrader>=1.9.78.123
+# vectorbt>=0.26.2
+
+# Visualization
+# matplotlib>=3.8.0
+# plotly>=5.19.0
+
+# -----------------------------------------------------------------------
+# Development utilities (optional)
+# -----------------------------------------------------------------------
+
+# Jupyter notebooks
+# jupyter>=1.0.0
+# ipykernel>=6.29.0
+
+matplotlib~=3.10.8

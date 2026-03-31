@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.code-workspace
+.antigravityignore
+
+# Environment variables (contains API keys!)
+.env
+
+# Pytest
+.pytest_cache/
+
+# Cache data (large, regenerable)
+data/cache/
+
+# Logs
+data/logs/
+
+# Generated outputs (regenerable)
+equity_curve.png
+backtest_output.txt
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# Backup files
+*_BACKUP.*
