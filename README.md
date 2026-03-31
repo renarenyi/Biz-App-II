@@ -251,7 +251,7 @@ When run with `--screen`, the system dynamically selects the best stocks from a 
 | Finance (4) | JPM, GS, V, MA |
 | Healthcare (3) | JNJ, UNH, PFE |
 | Consumer (3) | WMT, COST, DIS |
-| Energy (2) | XOM, CVX |
+| Energy (7) | XOM, CVX, COP, SLB, EOG, MPC, OXY |
 | Industrial (2) | BA, CAT |
 
 Screening scores each stock on 3 criteria (0-100 total):
