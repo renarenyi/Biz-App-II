@@ -215,7 +215,7 @@ This daily signal is then combined with technical indicators (SMA-50, RSI) by `s
 
 ## Backtest Results
 
-### Performance Summary (FinBERT — Fixed Universe)
+### Performance Summary (As of Mar 31st 2026)
 
 | Metric | FinBERT Strategy | SPY Benchmark |
 |---|------------------|---|
