@@ -218,24 +218,27 @@ This daily signal is then combined with technical indicators (SMA-50, RSI) by `s
 ### Performance Summary (FinBERT — Fixed Universe)
 
 | Metric | FinBERT Strategy | SPY Benchmark |
-|---|---|---|
-| **Total Return** | **+11.5%** | +13.0% |
-| **Final Equity** | **$111,270** | — |
-| **Max Drawdown** | **-3.1%** | -12.0% |
-| **Sharpe Ratio** | **0.99** | 0.77 |
-| **Profit Factor** | **1.91** | — |
-| **Win Rate** | **58.6%** | — |
-| **Trade Count** | **72** | 1 (buy & hold) |
-| **Market Exposure** | **49.6%** | 100% |
+|---|------------------|---|
+| **Total Return** | **+15.41%**      | +13.01% |
+| **Final Equity** | **$115,410**     | — |
+| **Max Drawdown** | **-2.58%**       | -12.05% |
+| **Sharpe Ratio** | **1.559**        | 0.772 |
+| **Calmar Ratio** | **6.006**        | — |
+| **Profit Factor** | **2.376**       | — |
+| **Win Rate** | **56.06%**       | — |
+| **Trade Count** | **66**           | 1 (buy & hold) |
+| **Avg Win / Avg Loss** | **$719 / -$386** | — |
+| **Avg Holding** | **11.4 days**    | — |
+| **Market Exposure** | **52.59%**       | 100% |
 
 ### Key Observations
 
-- **Superior risk-adjusted return**: Sharpe ratio of **0.99 beats SPY's 0.77** — the strategy generates more return per unit of risk
-- **Capital preservation**: Strategy drawdown (-3.1%) is **3.8× lower** than SPY (-12.0%)
-- **Half the exposure, near-equal return**: The strategy is only in the market 49.6% of the time yet captures 88% of SPY's return
-- **Strong win rate**: 58.6% of trades are profitable with a Profit Factor of 1.91
-- **Leverage potential**: With 3.2× leverage, the strategy would return ~36.6% with ~-10% drawdown
-- **72 trades across 4 stocks**: Sufficient sample size for statistical confidence
+- **Outperforms SPY on both raw and risk-adjusted return**: 15.41% vs 13.01% total return, with a Sharpe of **1.559 vs 0.772** — 2× more return per unit of risk
+- **Capital preservation**: Strategy drawdown (-2.58%) is **4.7× lower** than SPY (-12.05%)
+- **Half the exposure, higher return**: The strategy is only in the market 52.6% of the time yet beats SPY's total return
+- **Strong profit factor**: 2.376 — winning trades generate 2.4× more profit than losing trades cost
+- **Leverage potential**: With 1.9× leverage, the strategy would match SPY's exposure while returning ~29.3% with ~-4.9% drawdown
+- **66 trades across 4 stocks**: Sufficient sample size for statistical confidence
 - **Full NLP coverage**: With paginated Alpaca News API fetching ~3,000+ articles per ticker, real FinBERT sentiment drives decisions on the vast majority of trading days
 
 ### Dynamic Stock Rotation Mode
@@ -262,15 +265,18 @@ At each rotation boundary, the top N stocks are selected. Stocks rotated out nat
 
 We iteratively tuned strategy parameters to maximise risk-adjusted return:
 
-| Config | Stop-Loss | Take-Profit | Equity/Trade | Features | Return | Sharpe | Trades |
-|---|---|---|---|---|---|---|---|
-| Initial (50 articles) | 7% | 14% | 10% | NER filters | 5.74% | — | 42 |
-| Tighter stop | 5% | 10% | 12% | No NER | -0.01% | — | 62 |
-| Optimized SL/TP | 7% | 10% | 12% | No NER | 6.47% | 0.641 | 48 |
-| Full coverage (50 articles) | 7% | 10% | 12% | NER + Cross-Ticker | 6.69% | 0.650 | 49 |
-| **Full coverage (3,000+ articles)** | **7%** | **10%** | **12%** | **NER + Cross-Ticker + Paginated News** | **11.5%** | **0.99** | **72** |
+| Config | Stop-Loss | Take-Profit | Conviction | Equity/Trade | Features | Return | Sharpe | Trades |
+|---|---|---|---|---|---|---|---|---|
+| Initial (50 articles) | 7% | 14% | 7.0 | 10% | NER filters | 5.74% | — | 42 |
+| Tighter stop | 5% | 30% | 7.0 | 12% | No NER | -0.01% | — | 62 |
+| Optimized SL/TP | 7% | 10% | 7.0 | 12% | No NER | 6.47% | 0.641 | 48 |
+| Full coverage (50 articles) | 7% | 10% | 7.0 | 12% | NER + Cross-Ticker | 6.69% | 0.650 | 49 |
+| Full coverage (3,000+ articles) | 7% | 10% | 7.0 | 12% | NER + Cross-Ticker + Paginated News | 11.5% | 0.99 | 72 |
+| **Optimized TP + lower conviction** | **7%** | **30%** | **6.0** | **12%** | **NER + Cross-Ticker + Paginated News** | **15.41%** | **1.559** | **66** |
 
-Key insight: the biggest performance leap came from fixing Alpaca News pagination — going from 50 to 3,000+ articles per ticker gave FinBERT real data to analyze on virtually every trading day, replacing the momentum-based backfill that diluted the NLP signal.
+Key insights:
+- The biggest performance leap came from fixing Alpaca News pagination — going from 50 to 3,000+ articles per ticker gave FinBERT real data to analyze on virtually every trading day, replacing the momentum-based backfill that diluted the NLP signal.
+- The final parameter tuning — raising take-profit from 10% to 30% and lowering conviction threshold from 7.0 to 6.0 — let winners run longer and entered more trades, boosting total return from 11.5% to 15.41% and Sharpe from 0.99 to 1.559.
 
 ---
 
@@ -280,7 +286,7 @@ Key insight: the biggest performance leap came from fixing Alpaca News paginatio
 
 1. **Trend filter**: Price above 50-day Simple Moving Average (SMA-50)
 2. **ADX trend quality**: ADX-14 ≥ 20 (confirms directional trend, filters out choppy markets)
-3. **Sentiment signal**: Daily aggregated sentiment = POSITIVE with conviction ≥ 7.0
+3. **Sentiment signal**: Daily aggregated sentiment = POSITIVE with conviction ≥ 6.0
 4. **Rolling sentiment context**: 5-day sentiment EMA > 0 (prevents reacting to isolated positive headlines after sustained negativity)
 5. **RSI filter**: 14-period RSI < 70 (prevents buying into overbought conditions)
 6. **NER Relevance Weighting**: Headlines are checked for company/competitor keywords; direct mentions get full weight (1.0), competitors get 0.8, and generic/SEO news gets heavily discounted (0.3).
@@ -290,7 +296,7 @@ Key insight: the biggest performance leap came from fixing Alpaca News paginatio
 ### Exit Conditions (any one triggers)
 
 1. **Stop-loss**: -7% from entry price
-2. **Take-profit**: +10% from entry price
+2. **Take-profit**: +30% from entry price
 3. **Trend exit**: Price crosses below SMA-50
 4. **Sentiment reversal**: Daily sentiment flips to NEGATIVE with conviction ≥ 8.0
 

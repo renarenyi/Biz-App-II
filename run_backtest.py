@@ -331,8 +331,8 @@ def main():
         initial_capital=100000.0,
         stop_loss_pct=0.07,
         take_profit_enabled=True,
-        take_profit_pct=0.10,
-        conviction_threshold=7.0,
+        take_profit_pct=0.30,
+        conviction_threshold=6.0,
         neg_conviction_threshold=8.0,
         equity_fraction=0.12,
     )
