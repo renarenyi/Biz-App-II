@@ -48,7 +48,7 @@ DEFAULT_UNIVERSE = [
     # Consumer
     "WMT", "COST", "DIS",
     # Energy
-    "XOM", "CVX",
+    "XOM", "CVX", "COP", "SLB", "EOG", "MPC", "OXY",
     # Industrial
     "BA", "CAT",
 ]

@@ -62,7 +62,7 @@ def summary_table(result: dict) -> dict[str, str]:
         "Initial Capital":         _dollar(result.get("initial_capital")),
         "Final Equity":            _dollar(result.get("final_equity")),
         "Total Return":            _pct(result.get("total_return")),
-        "Annualised Return":       _pct(result.get("annualised_return")),
+
         "Max Drawdown":            _pct(result.get("max_drawdown")),
         "Sharpe Ratio":            _float(result.get("sharpe_ratio"), 3),
         "Calmar Ratio":            _float(result.get("calmar_ratio"), 3),
@@ -141,9 +141,7 @@ def comparison_table(result: dict) -> list[dict]:
         {"Metric": "Total Return",
          "Strategy": _pct(result.get("total_return")),
          "SPY B&H":  _pct(bench.get("total_return"))},
-        {"Metric": "Annualised Return",
-         "Strategy": _pct(result.get("annualised_return")),
-         "SPY B&H":  _pct(bench.get("annualised_return"))},
+
         {"Metric": "Max Drawdown",
          "Strategy": _pct(result.get("max_drawdown")),
          "SPY B&H":  _pct(bench.get("max_drawdown"))},

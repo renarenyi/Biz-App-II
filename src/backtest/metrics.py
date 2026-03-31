@@ -73,9 +73,17 @@ def compute_metrics(
     -------
     dict with all metric keys (None where insufficient data)
     """
-    n_bars         = len(equity_curve)
+    # Deduplicate equity curve by timestamp — the backtester records one
+    # snapshot per ticker per bar, so raw len(equity_curve) overcounts.
+    # Keep the LAST snapshot for each unique timestamp (final mark-to-market).
+    seen_ts: dict[str, dict] = {}
+    for s in equity_curve:
+        ts_key = str(s.get("timestamp", ""))[:10]  # date-level dedup
+        seen_ts[ts_key] = s
+    deduped_curve  = list(seen_ts.values())
+    n_bars         = len(deduped_curve)
     final_equity   = equity_curve[-1]["equity"] if equity_curve else initial_capital
-    equity_values  = [s["equity"] for s in equity_curve]
+    equity_values  = [s["equity"] for s in deduped_curve]
     daily_returns  = _daily_returns(equity_values)
 
     total_ret      = (final_equity - initial_capital) / initial_capital if initial_capital else 0.0
