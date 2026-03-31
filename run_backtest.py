@@ -31,6 +31,7 @@ from src.backtest.backtester import Backtester
 from src.backtest.schemas import default_config
 from src.backtest.report_generator import print_report
 from src.data.utils import now_utc
+from src.strategy.stock_screener import StockScreener, print_screening_report
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
@@ -176,6 +177,10 @@ def main():
                         help="Single ticker (backward-compat, overrides --tickers)")
     parser.add_argument("--benchmark", type=str, default="SPY", help="Benchmark ticker")
     parser.add_argument("--months", type=int, default=12, help="Number of months of historical data")
+    parser.add_argument("--screen", action="store_true",
+                        help="Enable dynamic stock screening to select tickers from a larger universe")
+    parser.add_argument("--top-n", type=int, default=4,
+                        help="Number of top stocks to select when using --screen (default: 4)")
     args = parser.parse_args()
 
     # Support both --ticker AAPL (single) and --tickers AAPL MSFT (multi)
@@ -191,6 +196,15 @@ def main():
     market_handler = MarketDataHandler()
     news_fetcher = NewsFetcher()
     sentiment_agent = SentimentAgent(window_hours=24)
+
+    # 1b. Dynamic Stock Screening (optional)
+    if args.screen:
+        logger.info("Running dynamic stock screening...")
+        screener = StockScreener(market_handler, news_fetcher)
+        screening_results = screener.screen(top_n=args.top_n)
+        print_screening_report(screening_results)
+        tickers = [r["ticker"] for r in screening_results[:args.top_n]]
+        logger.info(f"Screener selected: {tickers}")
 
     # 2. Fetch Benchmark Data
     logger.info("Fetching Benchmark Data...")
