@@ -25,7 +25,6 @@ Built for **MMAI 5090 — Business Applications of AI II**.
 ```
 trading-agent/
   data/                        ← cached files (gitignored)
-  notebooks/                   ← Jupyter exploration notebooks
   src/
     config/
       settings.py              ← env-based config (all secrets via .env)
@@ -33,7 +32,6 @@ trading-agent/
       schemas.py               ← data contracts: OHLCVBar, NewsArticle
       cache.py                 ← TTLCache (memory) + DiskCache (parquet/jsonl)
       utils.py                 ← timestamps, dedup, text helpers
-      polling.py               ← adaptive refresh scheduling
       market_data_handler.py   ← primary market data orchestrator
       news_fetcher.py          ← primary news data orchestrator
       providers/
@@ -42,16 +40,15 @@ trading-agent/
         alpaca_news_provider.py  ← Alpaca News API (primary)
         fmp_news_provider.py     ← FMP News API (supplemental)
         finnhub_news_provider.py ← Finnhub News API (supplemental)
-        yahoo_news_provider.py   ← Google News RSS (historical gap-fill)
         rss_news_provider.py     ← RSS feeds (fallback)
     nlp/                       ← Phase 2: LLM sentiment agent
       sentiment_agent.py         ← orchestrator with caching & freshness
       providers/
         finbert_provider.py      ← FinBERT (primary, CPU-runnable, deterministic)
-    strategy/                  ← Phase 3: signal generation
+    strategy/                  ← Phase 3: signal generation & stock selection
       signal_rules.py            ← entry/exit logic (SMA-50 + sentiment + RSI)
       risk_manager.py            ← stop-loss, take-profit, trailing stops
-    execution/                 ← Phase 3: Alpaca paper order execution
+      stock_screener.py          ← dynamic stock screening & monthly rotation
     backtest/                  ← Phase 4: historical backtesting
       backtester.py              ← core simulation engine
       report_generator.py        ← metrics & trade log output
@@ -61,9 +58,9 @@ trading-agent/
     test_sentiment_agent.py
     ...                          (292 tests total)
   run_backtest.py              ← CLI entry point for backtesting
+  demo_backtest.ipynb          ← presentation notebook for live demo
   main.py                      ← CLI entry point for live paper trading
   sentiment.py                 ← CLI entry point for sentiment analysis
-  .env.example
   requirements.txt
 ```
 
@@ -149,6 +146,12 @@ pytest tests/ -v
 # Multi-ticker backtest (default: AAPL, MSFT, GOOGL, NVDA)
 python run_backtest.py
 
+# With dynamic stock rotation — screens 24-stock universe monthly
+python run_backtest.py --screen
+
+# Select top 6 stocks per rotation window
+python run_backtest.py --screen --top-n 6
+
 # Custom tickers and lookback
 python run_backtest.py --tickers AAPL MSFT AMZN --months 12
 
@@ -212,28 +215,48 @@ This daily signal is then combined with technical indicators (SMA-50, RSI) by `s
 
 ## Backtest Results
 
-### Performance Summary (FinBERT — Full Article Coverage)
+### Performance Summary (FinBERT — Fixed Universe)
 
 | Metric | FinBERT Strategy | SPY Benchmark |
 |---|---|---|
-| **Total Return** | **+11.07%** | +12.29% |
-| **Final Equity** | **$111,074.54** | — |
-| **Max Drawdown** | **-2.93%** | -12.05% |
-| **Sharpe Ratio** | **1.034** | 0.742 |
-| **Profit Factor** | **2.057** | — |
-| **Win Rate** | **58.57%** | — |
-| **Trade Count** | **70** | 1 (buy & hold) |
-| **Market Exposure** | **48.59%** | 100% |
+| **Total Return** | **+11.5%** | +13.0% |
+| **Final Equity** | **$111,270** | — |
+| **Max Drawdown** | **-3.1%** | -12.0% |
+| **Sharpe Ratio** | **0.99** | 0.77 |
+| **Profit Factor** | **1.91** | — |
+| **Win Rate** | **58.6%** | — |
+| **Trade Count** | **72** | 1 (buy & hold) |
+| **Market Exposure** | **49.6%** | 100% |
 
 ### Key Observations
 
-- **Superior risk-adjusted return**: Sharpe ratio of **1.034 beats SPY's 0.742** — the strategy generates more return per unit of risk
-- **Capital preservation**: Strategy drawdown (-2.93%) is **4.1× lower** than SPY (-12.05%)
-- **Half the exposure, near-equal return**: The strategy is only in the market 48.6% of the time yet captures 90% of SPY's return (11.1% vs 12.3%)
-- **Strong win rate**: 58.6% of trades are profitable with a Profit Factor of 2.057 (earns $2.06 for every $1 lost)
-- **Leverage potential**: With 2× leverage, the strategy would return ~22.1% with -5.9% drawdown — significantly outperforming SPY's 12.3% return at -12% drawdown
-- **70 trades across 4 stocks**: Sufficient sample size for statistical confidence in results
+- **Superior risk-adjusted return**: Sharpe ratio of **0.99 beats SPY's 0.77** — the strategy generates more return per unit of risk
+- **Capital preservation**: Strategy drawdown (-3.1%) is **3.8× lower** than SPY (-12.0%)
+- **Half the exposure, near-equal return**: The strategy is only in the market 49.6% of the time yet captures 88% of SPY's return
+- **Strong win rate**: 58.6% of trades are profitable with a Profit Factor of 1.91
+- **Leverage potential**: With 3.2× leverage, the strategy would return ~36.6% with ~-10% drawdown
+- **72 trades across 4 stocks**: Sufficient sample size for statistical confidence
 - **Full NLP coverage**: With paginated Alpaca News API fetching ~3,000+ articles per ticker, real FinBERT sentiment drives decisions on the vast majority of trading days
+
+### Dynamic Stock Rotation Mode
+
+When run with `--screen`, the system dynamically selects the best stocks from a **24-stock universe** across 6 sectors, re-screening every 21 trading days (~monthly):
+
+| Sector | Stocks |
+|---|---|
+| Tech (10) | AAPL, MSFT, GOOGL, NVDA, META, AMZN, TSLA, AMD, CRM, ORCL |
+| Finance (4) | JPM, GS, V, MA |
+| Healthcare (3) | JNJ, UNH, PFE |
+| Consumer (3) | WMT, COST, DIS |
+| Energy (2) | XOM, CVX |
+| Industrial (2) | BA, CAT |
+
+Screening scores each stock on 3 criteria (0-100 total):
+1. **Liquidity** (0-33) — average daily dollar volume
+2. **Trend Strength** (0-33) — % of days above SMA-50 + current trend
+3. **Volatility** (0-34) — targets the 20-35% annualized sweet spot
+
+At each rotation boundary, the top N stocks are selected. Stocks rotated out naturally exit via existing stop-loss/trend-failure rules. Only sentiment for "active" tickers is fed to the backtester, so no trades are opened for rotated-out stocks.
 
 ### Parameter Optimization History
 
@@ -245,7 +268,7 @@ We iteratively tuned strategy parameters to maximise risk-adjusted return:
 | Tighter stop | 5% | 10% | 12% | No NER | -0.01% | — | 62 |
 | Optimized SL/TP | 7% | 10% | 12% | No NER | 6.47% | 0.641 | 48 |
 | Full coverage (50 articles) | 7% | 10% | 12% | NER + Cross-Ticker | 6.69% | 0.650 | 49 |
-| **Full coverage (3,000+ articles)** | **7%** | **10%** | **12%** | **NER + Cross-Ticker + Paginated News** | **11.07%** | **1.034** | **70** |
+| **Full coverage (3,000+ articles)** | **7%** | **10%** | **12%** | **NER + Cross-Ticker + Paginated News** | **11.5%** | **0.99** | **72** |
 
 Key insight: the biggest performance leap came from fixing Alpaca News pagination — going from 50 to 3,000+ articles per ticker gave FinBERT real data to analyze on virtually every trading day, replacing the momentum-based backfill that diluted the NLP signal.
 
@@ -382,8 +405,8 @@ During cooldown, requests skip that provider immediately without hitting the API
 |---|---|---|
 | 1 — Data Infrastructure | ✅ Complete | `MarketDataHandler` + `NewsFetcher` (Alpaca + FMP + Finnhub integrated) |
 | 2 — LLM Sentiment Agent | ✅ Complete | FinBERT conviction scoring with 3,000+ articles per ticker |
-| 3 — Strategy & Execution | ✅ Complete | Signal generation + paper trading orders via `main.py` |
-| 4 — Backtesting | ✅ Complete | Multi-ticker validation vs SPY + equity curve plot |
+| 3 — Strategy & Execution | ✅ Complete | Signal generation + dynamic stock screening & rotation |
+| 4 — Backtesting | ✅ Complete | Multi-ticker validation vs SPY + equity curve + rotation support |
 
 ---
 
